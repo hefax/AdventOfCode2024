@@ -10,11 +10,16 @@ function get_data($file) {
         if(empty($row)) {
             continue;
         }
+        $row=trim($row);
 
         $map[] = mb_str_split($row);
     }
 
     return $map;
+}
+
+function get_copy($map) {
+    return array_values($map);
 }
 
 
@@ -65,7 +70,7 @@ function what_is_ahead($map,$r,$c) {
     $max_r = sizeof($map);
     $max_c = sizeof($map[0]);
     
-    if($r < 0 or $r >= $max_r or $c < 0 or $c > $max_c) {
+    if($r < 0 or $r >= $max_r or $c < 0 or $c >= $max_c) {
         return "OOB";
     }
 
@@ -83,27 +88,52 @@ function what_is_ahead($map,$r,$c) {
     return "PANIC";
 }
 
-function first($file) {
-    $map = get_data($file);
-    
-    $max_r = sizeof($map);
-    $max_c = sizeof($map[0]);
 
-
-
+function get_path($map,$r,$c) {
+    $UP = 1;
+    $DOWN = 2;
+    $LEFT = 4;
+    $RIGHT = 8;
 
     $blank = get_blank($map);
-
-    $start = find_start($map);
-
-    $r = $start["row"];
-    $c = $start["col"];
-    $d = "UP";
+    $d_blank = get_blank($map);
 
     $loop=true;
+    $d = "UP";
 
     while($loop) {
         $blank[$r][$c] += 1;
+
+        $d_symbol=0;
+        switch($d) {
+            case "UP":
+                $d_symbol=$UP;
+                break;
+            case "DOWN":
+                $d_symbol=$DOWN;
+                break;
+            case "LEFT":
+                $d_symbol=$LEFT;
+                break;
+            case "RIGHT":
+                $d_symbol=$RIGHT;
+                break;
+        }    
+
+        if($d_blank[$r][$c] == 0) {
+            $d_blank[$r][$c] = $d_symbol;
+        }
+        elseif(($d_blank[$r][$c] & $d_symbol) == $d_symbol) {
+            // echo $d_blank[$r][$c]." + ".$d_symbol."== ".($d_blank[$r][$c] & $d_symbol) ."\n";
+            // we have been here already going this direction. 
+            // This is an infinite loop.
+            // print_map($d_blank);
+            return "INFINITE";
+        }
+        else {
+            // add the direction here. 
+            $d_blank[$r][$c] |= $d_symbol;
+        }
 
         $decide=true;
         while($decide) {
@@ -162,8 +192,22 @@ function first($file) {
             }
         }
     }
-    print_map($map);
-    print_map($blank);
+
+    return $blank;
+} 
+
+
+
+function first($file) {
+    $map = get_data($file);
+    
+
+    $start = find_start($map);
+
+    $r = $start["row"];
+    $c = $start["col"];
+
+    $blank = get_path($map,$r,$c);
 
     $count = 0;
     foreach($blank as $row) {
@@ -173,9 +217,53 @@ function first($file) {
             }
         }
     }
-
+    print_map($map);
     echo "Result: ".$count."\n";
 
 }
 
+function second($file) {
+
+    $map = get_data($file);
+    
+    $start = find_start($map);
+
+    $r = $start["row"];
+    $c = $start["col"];
+
+    $map[$r][$c]=".";
+
+    $blank = get_path($map,$r,$c);
+
+    // var_dump($blank);
+
+
+
+    $res = 0;
+    foreach($blank as $rt => $row) {
+        foreach($row as $ct => $node) {
+            if($node == 0) {
+                continue;
+            }
+            elseif($rt == $r and $ct == $c) {
+                continue;
+            }
+
+            $copy = get_copy($map);
+            $copy[$rt][$ct] = "#";
+
+            $count = get_path($copy,$r,$c);
+            if($count == "INFINITE") {
+                $res +=1;
+            }
+        }
+    }
+
+    echo "Result: ".$res."\n";
+
+
+
+}
+
 first("input.txt");
+second("input.txt");
